@@ -267,6 +267,18 @@ anderer Körper), `besitz-zeit`. Ohne Geräteschlüssel ist ein Zertifikat wertl
 - `passwort`: Hash und Grenzen stehen in `TREFFPUNKT_ENTWICKLER_PASSWOERTER` (App, Mandant, Ablauf,
   höchstens N, `auchMitGeraeten`). Nur solange der Mandant keine Geräte hat, außer es ist erlaubt
   (`entwickler-belegt`); 20 Versuche je App und Stunde.
+- **Aufnahme neuer Gruppen (Schutz, 21.11.2026).** Jede App hat in `konfiguration/apps.json` die Zahl `mandanten`:
+  so viele Gruppen (Mandanten, zum Beispiel Schulen) darf sie beim Treffpunkt haben; **0 = keine neue Gruppe**. Ein
+  Gerät, das eine **weitere** Gruppe beginnen würde, wird auf **jedem** Weg des Einschreibens (Nachweis, `e1`,
+  `e2`, `gruender`, `passwort`) mit 403 `aufnahme-geschlossen` abgelehnt — **vor** allem, was verbraucht oder
+  gezählt wird, ein abgelehntes Ticket oder Passwort gilt also nach dem Erhöhen noch. Eine Gruppe, die es schon gibt,
+  nimmt weiter Geräte auf (bis 50), und ihre Geräte arbeiten weiter. Zusätzlich nimmt der Treffpunkt insgesamt
+  höchstens 300 Geräte (`treffpunkt-voll`, 503), alle Apps zusammen. Gezählt wird, was der Treffpunkt seit seinem
+  Start sah (er hat keinen dauerhaften Speicher): nach einem Neustart füllt sich die Zahl, sobald sich die Geräte
+  melden. Erhöhen: `mandanten` in `apps.json` (neues Image) oder bei bunny `TREFFPUNKT_MANDANTEN=azp=2,tkd=1`
+  (nur die genannten Apps, Neustart genügt, `docs/bereitstellen.md`). `GET /gesund` sagt der Seite einer bekannten
+  App, ob gerade eine neue Gruppe aufgenommen wird (`aufnahmeOffen`, ohne Zahlen). Die Auswertung zeigt je App
+  `mandantenMax` und `mandanten` sowie `geraeteGesamt`.
 - `geraete-voll` (409): 50 Geräte je App und Mandant. `neue-fassung-noetig` (426): der Mandant ist
   `streng`, der alte Weg gilt dort nicht mehr.
 
@@ -362,6 +374,7 @@ Das Login-Skript der Testzone (Repo `Testumgebung`, `zugang/`) stellt angemeldet
 | Einschreiben je App mit Nachweis | 120 je Stunde |
 | Einschreiben je App mit Einladung | 60 je Stunde |
 | Geräte je App und Mandant | 50 |
+| Geräte gesamt | 300 |
 | Sperren je Gerät | 30 je Stunde |
 | Sperrliste je App und Mandant | 500 |
 | Entwicklerpasswort-Versuche je App | 20 je Stunde |

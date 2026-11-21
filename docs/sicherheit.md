@@ -339,6 +339,16 @@ Verfahren; für die Seite einer bekannten App (CORS) zusätzlich ihre App-Kennun
 ist. Das sind Betriebsangaben, kein Geheimnis (die Fähigkeiten stehen in `docs/schnittstelle.md`). Mandanten
 nennt es nie. Getestet: `verfahren.test.ts`, `server.test.ts`.
 
+## Aufnahme neuer Gruppen und Geräte (21.11.2026)
+
+Der Treffpunkt ist „geschlossen“: Gruppen (Mandanten) entstehen nur durch ein Gründerticket, ein Passwort oder die
+Einladung eines Büro-Geräts, und zusätzlich begrenzt `mandanten` in `apps.json` (und `TREFFPUNKT_MANDANTEN`), wie
+viele Gruppen eine App haben darf (heute `azp` 1, `tkd` 0), und höchstens 300 Geräte insgesamt (`GRENZEN`). Beides ist
+ein Schutz gegen ein falsch ausgestelltes Ticket oder Passwort, gegen den Missbrauch eines gestohlenen und gegen ein
+Anlegen ohne Ende; es ist kein offenes Anlegen. **Grenze:** Gezählt wird, was seit dem Start gesehen wurde (der
+Treffpunkt speichert nichts): nach einem Neustart ist die Zahl kurz kleiner, bis sich die Geräte melden. Die Zeitspanne
+nutzt nur, wer ein gültiges Ticket hat. Getestet: `aufnahme.test.ts`, `konfiguration.test.ts`.
+
 ## Offen
 
 - HTTP-Protokolle von Magic Containers (Client-IP, 3 Tage): abschaltbar? (`docs/bunny-einrichtung.md`)

@@ -107,6 +107,7 @@ test('the table of limits in docs/schnittstelle.md is what src/grenzen.ts holds'
       `${g.einschreibenEinladungJeStunde} je ${je(g.stundeMs)}`,
     ],
     geraeteJeMandant: ['Geräte je App und Mandant', `${g.geraeteJeMandant}`],
+    geraeteGesamt: ['Geräte gesamt', `${g.geraeteGesamt}`],
     sperrenJeStunde: ['Sperren je Gerät', `${g.sperrenJeStunde} je ${je(g.stundeMs)}`],
     sperrlisteJeMandant: ['Sperrliste je App und Mandant', `${g.sperrlisteJeMandant}`],
     passwortVersucheJeStunde: [

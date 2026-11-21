@@ -35,6 +35,8 @@ export interface Grenzen {
   /** Devices one tenant (app + school) may have at most (kept in RAM: after a restart it fills again
    * as devices ask). */
   readonly geraeteJeMandant: number;
+  /** Devices of all apps and tenants together; at it no new device is taken (`treffpunkt-voll`). */
+  readonly geraeteGesamt: number;
   /** Blocks one device may make per hour. */
   readonly sperrenJeStunde: number;
   /** Blocked ids one tenant's list holds at most. */
@@ -81,6 +83,7 @@ export const GRENZEN: Grenzen = {
   einschreibenJeStunde: 120,
   einschreibenEinladungJeStunde: 60,
   geraeteJeMandant: 50,
+  geraeteGesamt: 300,
   sperrenJeStunde: 30,
   sperrlisteJeMandant: 500,
   passwortVersucheJeStunde: 20,

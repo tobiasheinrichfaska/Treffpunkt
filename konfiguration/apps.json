@@ -7,7 +7,8 @@
         "BIHmwng6Yjr92RZ7KKW1DDbcscv9S0GJm14IvORcsFrtKj25zjXp_j-_BexZu-b94Orjx9y38tz7h6hs6YMOl5U"
       ],
       "einladen": true,
-      "gesperrt": []
+      "gesperrt": [],
+      "mandanten": 0
     },
     "azp": {
       "name": "Arbeitszeitplaner",
@@ -16,7 +17,8 @@
         "BIHmwng6Yjr92RZ7KKW1DDbcscv9S0GJm14IvORcsFrtKj25zjXp_j-_BexZu-b94Orjx9y38tz7h6hs6YMOl5U"
       ],
       "einladen": true,
-      "gesperrt": []
+      "gesperrt": [],
+      "mandanten": 1
     }
   }
 }

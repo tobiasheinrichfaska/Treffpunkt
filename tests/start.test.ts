@@ -120,7 +120,11 @@ test('the clock for waiting never goes back, whatever the wall clock does', (t) 
 });
 
 test('the Treffpunkt of the start runs waiting on the monotonic clock', async () => {
-  const e = einstellungenLesen({ TREFFPUNKT_SCHLUESSEL: SCHLUESSEL }, () => APPS);
+  // the repo's apps.json takes no group for tkd (limit 0): the limit is raised here as bunny would, by the environment
+  const e = einstellungenLesen(
+    { TREFFPUNKT_SCHLUESSEL: SCHLUESSEL, TREFFPUNKT_MANDANTEN: 'tkd=5' },
+    () => APPS,
+  );
   const uhr = { wand: Date.UTC(2026, 10, 16, 12), takt: 1000 };
   const t = treffpunktFuer(e, { jetzt: () => uhr.wand, takt: () => uhr.takt }, async () => 201);
   // Enrol two devices by invitation (no proof key needed here).
@@ -204,7 +208,11 @@ test('the start rings through the real sender: TLS to the push service, cut afte
   Object.assign(optionen, { ca: cert, port, lookup });
   mock.timers.enable({ apis: ['setTimeout'] });
   try {
-    const e = einstellungenLesen({ TREFFPUNKT_SCHLUESSEL: SCHLUESSEL }, () => APPS);
+    // the repo's apps.json takes no group for tkd (limit 0): the limit is raised here as bunny would, by the environment
+    const e = einstellungenLesen(
+      { TREFFPUNKT_SCHLUESSEL: SCHLUESSEL, TREFFPUNKT_MANDANTEN: 'tkd=5' },
+      () => APPS,
+    );
     const uhr = { wand: Date.UTC(2026, 10, 16, 12), takt: 1000 };
     // No sender given: the one the container uses.
     const t = treffpunktFuer(e, { jetzt: () => uhr.wand, takt: () => uhr.takt });
