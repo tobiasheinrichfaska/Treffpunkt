@@ -135,7 +135,7 @@ Next, in this order (`docs/plan.md` § 7):
 | `docs/auftrag-image-von-hand.md` | Aufträge (German) für Claude Code am PC (Image aus einem Commit bauen und nach ghcr.io schieben, solange GitHub keine Actions-Minuten hat), Claude in Chrome (Tag bei bunny umstellen), Cloud-Sitzung (von außen prüfen) |
 | `docs/freigabe-auftrag.md` | Brief for Claude Code in Freigabe (German): roll out the container image after a green „Tests“ |
 | `docs/wochenpruefung.md` | Weekly review list (German): bunny docs/prices, open bunny points, Node 24, push service hosts |
-| `konfiguration/apps.json` | The apps served: name, allowed origins (CORS), public keys of the login scripts, `einladen`, blocked ids — no secrets |
+| `konfiguration/apps.json` | The apps served: name, allowed origins (CORS), public keys of the login scripts, `einladen`, blocked ids, `mandanten` (how many groups the app may open: `azp` 1, `tkd` 0) — no secrets |
 | `src/server.ts` | Container start: puts the parts of `src/start.ts` together, listens, SIGTERM |
 | `src/start.ts` | The start in testable parts: `einstellungenLesen` (fail closed), `uhrenAnlegen`, `treffpunktFuer`, `zeitgeberStarten` (tidy up every second, counts every 5 minutes) |
 | `src/http.ts` | HTTP around the rules: the head is judged first (`vorpruefen`), then the body up to the endpoint's limit within 14 s; no query in the address; refusals with the usual headers; internal errors without text |
@@ -149,7 +149,7 @@ Next, in this order (`docs/plan.md` § 7):
 | `src/grenzen.ts` | Every limit (`GRENZEN`, `KOERPER_BYTES`) and the sliding-window counter (by count, or by bytes for the bodies per minute) |
 | `src/eingabe.ts` | Strict input: base64url, objects with fixed fields, ids |
 | `src/protokoll.ts` | The only output: one JSON line per event, counts only |
-| `tests/` | Node's test runner: `treffpunkt` (endpoints end to end), `postfach`, `zugang`, `nachweis`, `klingeln` (also the real way out against local servers: TLS, no redirect, deadline), `verfahren` (what the Treffpunkt serves and prefers: `/gesund` with CORS for a known origin, `ping` with `X-Treffpunkt-P`), `zulassung` (certificate + proof of possession, tenants, invitation `e2`, blocking, founder ticket, developer password, evaluation, `streng`, the old way beside it), `entwickler` (the tool), `konfiguration`, `grenzen` (counter; every limit of `GRENZEN` has its row in `docs/schnittstelle.md`), `server` (real HTTP: head before body, `Connection: close`, 413 with and without length, 408, bodies on the way, aborts), `workflow` (only „Image“ on `main` writes the package in any notation, actions pinned; must-fail and must-pass edits), `probe` (short commit), `start` (settings, clocks, timers, the container's own sender end to end with its 10 s deadline); `hilfen.ts` (wall clock and monotonic clock with their own epochs, key pair, stand-in push service, a self-signed certificate made in the test) |
+| `tests/` | Node's test runner: `treffpunkt` (endpoints end to end), `postfach`, `zugang`, `nachweis`, `klingeln` (also the real way out against local servers: TLS, no redirect, deadline), `aufnahme` (the limits of groups per app — `mandanten` in `apps.json`, `TREFFPUNKT_MANDANTEN` — and of devices altogether; refused before anything is used up), `verfahren` (what the Treffpunkt serves and prefers: `/gesund` with CORS for a known origin, `ping` with `X-Treffpunkt-P`), `zulassung` (certificate + proof of possession, tenants, invitation `e2`, blocking, founder ticket, developer password, evaluation, `streng`, the old way beside it), `entwickler` (the tool), `konfiguration`, `grenzen` (counter; every limit of `GRENZEN` has its row in `docs/schnittstelle.md`), `server` (real HTTP: head before body, `Connection: close`, 413 with and without length, 408, bodies on the way, aborts), `workflow` (only „Image“ on `main` writes the package in any notation, actions pinned; must-fail and must-pass edits), `probe` (short commit), `start` (settings, clocks, timers, the container's own sender end to end with its 10 s deadline); `hilfen.ts` (wall clock and monotonic clock with their own epochs, key pair, stand-in push service, a self-signed certificate made in the test) |
 | `scripts/entwickler.ts` | `npm run entwickler -- schluessel\|gruenderticket\|passwort\|auswertung`: Tobias' Werkzeug am eigenen PC (Schlüssel nie im Repo) |
 | `scripts/schluessel.ts` | `npm run schluessel`: makes `TREFFPUNKT_SCHLUESSEL` (Tobias, on his PC) |
 | `scripts/stand.ts` | `standPasst`: does the running commit fit a given one (7–40 characters) — for the probe, tested |
@@ -166,7 +166,7 @@ npm ci
 npm run typecheck
 npm run lint
 npm run format:check
-npm test            # 176 tests on 2026-11-21
+npm test            # 184 tests on 2026-11-21
 ```
 
 Local end-to-end: start `TREFFPUNKT_SCHLUESSEL=… PORT=18080 node src/server.ts`, make an invitation

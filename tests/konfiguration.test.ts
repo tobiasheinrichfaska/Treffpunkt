@@ -6,6 +6,7 @@ import {
   appsLesen,
   entwicklerLesen,
   KonfigurationFehler,
+  mandantenUeberschreiben,
   oeffentlicherSchluessel,
   schluesselLesen,
 } from '../src/konfiguration.ts';
@@ -17,6 +18,7 @@ const gut = () => ({
   nachweisSchluessel: [] as string[],
   einladen: true,
   gesperrt: [] as string[],
+  mandanten: 1,
 });
 const mit = (app: Record<string, unknown>) => JSON.stringify({ apps: { tkd: app } });
 
@@ -31,6 +33,9 @@ test('the apps.json in the repo is valid: tkd and azp, https origins of their te
   // it no first device could enrol.
   assert.equal(apps.get('tkd')?.nachweisSchluessel.length, 1);
   assert.equal(apps.get('azp')?.nachweisSchluessel.length, 1);
+  // Tobias 2026-11-21: one group for the Arbeitszeitplaner, none yet for the other apps
+  assert.equal(apps.get('azp')?.mandantenMax, 1);
+  assert.equal(apps.get('tkd')?.mandantenMax, 0);
 });
 
 test('a public key of a login script is read; anything else stops the start', () => {
@@ -133,4 +138,56 @@ test('a password hash is salted and checked; the text never appears in it', () =
   assert.notEqual(passwortHash('invented-demo'), h);
   assert.equal(h.includes('invented'), false);
   assert.equal(passwortPasst('x', 'kein hash'), false);
+});
+
+test('`mandanten` is the number of groups an app may open: required, a whole number from 0 to 1000', () => {
+  assert.equal(appsLesen(mit({ ...gut(), mandanten: 0 })).get('tkd')?.mandantenMax, 0);
+  assert.equal(appsLesen(mit({ ...gut(), mandanten: 1000 })).get('tkd')?.mandantenMax, 1000);
+  const ohne: Record<string, unknown> = gut();
+  delete ohne['mandanten'];
+  for (const falsch of [
+    ohne,
+    { ...gut(), mandanten: -1 },
+    { ...gut(), mandanten: 1001 },
+    { ...gut(), mandanten: 1.5 },
+    { ...gut(), mandanten: '1' },
+    { ...gut(), mandanten: null },
+  ]) {
+    assert.throws(() => appsLesen(mit(falsch)), KonfigurationFehler, JSON.stringify(falsch));
+  }
+});
+
+test('TREFFPUNKT_MANDANTEN raises or lowers the limit of the apps named; anything wrong stops the start', () => {
+  const apps = appsLesen(
+    JSON.stringify({
+      apps: {
+        tkd: { ...gut(), mandanten: 0 },
+        azp: { ...gut(), mandanten: 1, herkuenfte: ['https://azptest.b-cdn.net'] },
+      },
+    }),
+  );
+  assert.equal(mandantenUeberschreiben(apps, undefined), apps);
+  assert.equal(mandantenUeberschreiben(apps, ' '), apps);
+  const neu = mandantenUeberschreiben(apps, 'tkd=3, azp = 0');
+  assert.equal(neu.get('tkd')?.mandantenMax, 3);
+  assert.equal(neu.get('azp')?.mandantenMax, 0);
+  assert.equal(apps.get('tkd')?.mandantenMax, 0, 'the settings read are not changed');
+  assert.equal(
+    mandantenUeberschreiben(apps, 'azp=2').get('tkd')?.mandantenMax,
+    0,
+    'the others keep apps.json',
+  );
+  for (const falsch of [
+    'xyz=1',
+    'tkd',
+    'tkd=',
+    'tkd=-1',
+    'tkd=1001',
+    'tkd=1,tkd=2',
+    'tkd=1.5',
+    'tkd=1;azp=2',
+    '=1',
+  ]) {
+    assert.throws(() => mandantenUeberschreiben(apps, falsch), KonfigurationFehler, falsch);
+  }
 });

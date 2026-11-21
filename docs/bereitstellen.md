@@ -85,6 +85,24 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 Den Wert direkt bei bunny in `TREFFPUNKT_SCHLUESSEL` einfügen, nirgends speichern. Geht er verloren,
 einfach einen neuen erzeugen (siehe unten: dann schreiben sich alle Geräte neu ein).
 
+## Wie viele Gruppen eine App aufnehmen darf (Grenze für neue Mandanten)
+
+In `konfiguration/apps.json` steht je App `"mandanten": <Zahl>`: so viele Gruppen (Mandanten) darf die App beim
+Treffpunkt haben. **Heute:** `azp` 1, `tkd` 0 (Tobias 2026-11-21: ein Mandant für den Arbeitszeitplaner, für alle
+anderen Apps zunächst keiner). Mit 0 nimmt der Treffpunkt für die App keine neue Gruppe auf (Antwort
+`aufnahme-geschlossen`); schon eingeschriebene Geräte arbeiten weiter, und ein Gründerticket oder Passwort, das
+abgelehnt wurde, bleibt gültig.
+
+**Eine App live setzen, also die Grenze erhöhen:**
+1. Schnell, ohne neues Image: bei bunny in der App `treffpunkt` die Umgebungsvariable `TREFFPUNKT_MANDANTEN`
+   setzen, zum Beispiel `tkd=1` (Form `app=zahl`, mehrere durch Komma, nur die genannten Apps ändern sich, der Rest
+   bleibt wie in `apps.json`), speichern, neu starten (nur die Variable; Chrome nach dem Muster unten). Der Treffpunkt
+   verweigert den Start bei einer falschen Form.
+2. Dauerhaft: `mandanten` in `apps.json` ändern (Pull Request, mergen, Image, Tag umstellen) und die Variable wieder
+   entfernen. Die Variable gewinnt gegen die Datei, solange sie gesetzt ist.
+3. Danach das Gründerticket oder die Einladung des ersten Büro-Geräts der neuen App; `npm run entwickler --
+   auswertung` zeigt `aufnahme` (Grenze und Belegung je App) und die Geräte insgesamt (Grenze 300).
+
 ## Den Geheimwert wechseln, ohne dass alle neu einschreiben (Schlüsselring)
 
 Statt alles zu verwerfen: den **neuen** Wert (`npm run schluessel`) als `TREFFPUNKT_SCHLUESSEL` eintragen und

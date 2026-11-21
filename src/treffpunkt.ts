@@ -142,6 +142,8 @@ export const FEHLER = {
   'besitz-ungueltig': [401, 'Besitznachweis des Geräts ungültig'],
   'besitz-zeit': [401, 'Besitznachweis mit falscher Uhrzeit – Uhr prüfen'],
   'geraete-voll': [409, 'Höchstzahl Geräte erreicht'],
+  'aufnahme-geschlossen': [403, 'Für diese App nimmt der Treffpunkt keine neue Gruppe auf'],
+  'treffpunkt-voll': [503, 'Treffpunkt voll – es werden keine neuen Geräte aufgenommen'],
   'rolle-nicht-erlaubt': [403, 'Dafür fehlt dem Gerät die Rolle'],
   'geraet-unbekannt': [404, 'Gerät unbekannt'],
   'sperrliste-voll': [503, 'Sperrliste voll'],
@@ -596,6 +598,13 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
     if (marke !== undefined && verbraucht.has(marke)) return fehler('verbraucht', herkunft);
     const scope = scopeVon(app.id, mandant);
     const bekannte = register.get(scope);
+    // The Treffpunkt takes a new group (tenant) only up to the limit of its app (`mandanten` in apps.json): for a
+    // tenant that does not exist yet, ahead of everything that is counted or used up, so a ticket refused here still
+    // works once the limit is raised. A tenant that exists keeps growing (up to its devices).
+    if ((bekannte?.size ?? 0) === 0 && mandantenBelegt(app.id) >= app.mandantenMax) {
+      return fehler('aufnahme-geschlossen', herkunft);
+    }
+    if (geraeteGesamt() >= grenzen.geraeteGesamt) return fehler('treffpunkt-voll', herkunft);
     if ((bekannte?.size ?? 0) >= grenzen.geraeteJeMandant) return fehler('geraete-voll', herkunft);
     // Counted only now: garbage, a proof taken already or a foreign origin uses up nothing.
     if (!kontingent.erlaubt(app.id, taktMs)) return fehler('zu-viele-einschreibungen', herkunft);
@@ -778,6 +787,12 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
     return { z: ich, app };
   }
 
+  /** How many tenants of an app have devices now, and how many devices there are at all. */
+  const mandantenBelegt = (appId: string): number =>
+    [...register].filter(([scope, karte]) => scope.startsWith(`${appId}:`) && karte.size > 0)
+      .length;
+  const geraeteGesamt = (): number => [...register.values()].reduce((s, k) => s + k.size, 0);
+
   const appVon = (herkunft: string): AppEinstellung | undefined =>
     [...u.apps.values()].find((a) => a.herkuenfte.includes(herkunft));
 
@@ -792,7 +807,16 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
         ok: true,
         stand,
         ...faehigFuer(app, ALT_MANDANT),
-        ...(app ? { app: app.id, altAbgeschaltet: app.streng.has(ALT_MANDANT) } : {}),
+        ...(app
+          ? {
+              app: app.id,
+              altAbgeschaltet: app.streng.has(ALT_MANDANT),
+              // whether the Treffpunkt takes a new group for this app now (not how many there are)
+              aufnahmeOffen:
+                mandantenBelegt(app.id) < app.mandantenMax &&
+                geraeteGesamt() < grenzen.geraeteGesamt,
+            }
+          : {}),
       };
       return { fertig: antwort(200, daten, herkunft) };
     }
@@ -1059,7 +1083,20 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
     // the start“ proves nothing beyond `laufzeitS`.
     return antwort(
       200,
-      { laufzeitS: Math.round((taktMs - laeuftSeit) / 1000), mandanten },
+      {
+        laufzeitS: Math.round((taktMs - laeuftSeit) / 1000),
+        mandanten,
+        // how far each app has used its limit of groups, and the devices of all together against theirs
+        aufnahme: {
+          apps: [...u.apps.values()].map((x) => ({
+            app: x.id,
+            mandantenMax: x.mandantenMax,
+            mandanten: mandantenBelegt(x.id),
+          })),
+          geraeteGesamt: geraeteGesamt(),
+          geraeteGesamtMax: grenzen.geraeteGesamt,
+        },
+      },
       herkunft,
     );
   }

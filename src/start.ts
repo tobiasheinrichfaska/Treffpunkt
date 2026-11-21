@@ -9,6 +9,7 @@ import {
   appsLesen,
   entwicklerLesen,
   KonfigurationFehler,
+  mandantenUeberschreiben,
   schluesselLesen,
   type Apps,
   type Entwickler,
@@ -52,7 +53,7 @@ export function einstellungenLesen(
   } catch {
     throw new KonfigurationFehler('apps.json nicht lesbar');
   }
-  const apps = appsLesen(text);
+  const apps = mandantenUeberschreiben(appsLesen(text), env['TREFFPUNKT_MANDANTEN']);
   const schluessel = schluesselLesen(env['TREFFPUNKT_SCHLUESSEL']);
   const schluesselAlt = (env['TREFFPUNKT_SCHLUESSEL_ALT'] ?? '')
     .split(',')

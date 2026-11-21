@@ -19,6 +19,10 @@ export interface AppEinstellung {
    * no `z1` access, no login-script proof, no `e1` invitation (auftrag-zulassung D, phase 3). Set by
    * hand, never automatically. */
   readonly streng: ReadonlySet<string>;
+  /** How many tenants (groups, schools) of this app may exist at the Treffpunkt: a device that would start one more is
+   * refused (`aufnahme-geschlossen`); 0 = the app takes no new group at all. Tenants that exist keep growing. Raised in
+   * `apps.json` (new image) or at bunny with `TREFFPUNKT_MANDANTEN`. */
+  readonly mandantenMax: number;
 }
 
 /** A developer password, from the environment only: just its hash, never the text. */
@@ -77,9 +81,10 @@ function appLesen(id: string, wert: unknown): AppEinstellung {
     'einladen',
     'gesperrt',
     'streng',
+    'mandanten',
   ]);
   if (!feld) throw new KonfigurationFehler(`App ${id}: unbekannte Felder`);
-  const { name, herkuenfte, nachweisSchluessel, einladen, gesperrt, streng = [] } = feld;
+  const { name, herkuenfte, nachweisSchluessel, einladen, gesperrt, streng = [], mandanten } = feld;
   if (typeof name !== 'string' || !NAME.test(name)) {
     throw new KonfigurationFehler(`App ${id}: Name fehlt oder ungültig`);
   }
@@ -105,6 +110,15 @@ function appLesen(id: string, wert: unknown): AppEinstellung {
   if (!Array.isArray(streng) || !streng.every((m) => typeof m === 'string' && MANDANT.test(m))) {
     throw new KonfigurationFehler(`App ${id}: streng muss eine Liste von Mandanten sein`);
   }
+  // No default: how many groups an app may open is decided on purpose for each app (fail closed).
+  if (
+    typeof mandanten !== 'number' ||
+    !Number.isInteger(mandanten) ||
+    mandanten < 0 ||
+    mandanten > 1000
+  ) {
+    throw new KonfigurationFehler(`App ${id}: mandanten muss eine ganze Zahl von 0 bis 1000 sein`);
+  }
   return {
     id,
     name,
@@ -113,6 +127,7 @@ function appLesen(id: string, wert: unknown): AppEinstellung {
     einladen,
     gesperrt: new Set(gesperrt as string[]),
     streng: new Set(streng as string[]),
+    mandantenMax: mandanten,
   };
 }
 
@@ -213,4 +228,25 @@ export function entwicklerLesen(
     return { app, mandant, hash, bis, hoechstens, auchMitGeraeten };
   });
   return { schluessel, passwoerter };
+}
+
+/** TREFFPUNKT_MANDANTEN, `azp=2,tkd=0`: raises or lowers the tenant limit of the apps named, without a new image (the value
+ * of `apps.json` holds for the others). Anything wrong — an unknown app, a number out of range, a repeated app — throws. */
+export function mandantenUeberschreiben(apps: Apps, text: string | undefined): Apps {
+  if (text === undefined || text.trim() === '') return apps;
+  const neu = new Map(apps);
+  const gesehen = new Set<string>();
+  for (const teil of text.split(',')) {
+    const m = /^\s*([a-z][a-z0-9]{1,15})\s*=\s*(\d{1,4})\s*$/.exec(teil);
+    const app = m?.[1] === undefined ? undefined : apps.get(m[1]);
+    const zahl = m?.[2] === undefined ? Number.NaN : Number(m[2]);
+    if (!m || !app || zahl > 1000 || gesehen.has(app.id)) {
+      throw new KonfigurationFehler(
+        'TREFFPUNKT_MANDANTEN: Form app=zahl (0 bis 1000), nur bekannte Apps, je einmal',
+      );
+    }
+    gesehen.add(app.id);
+    neu.set(app.id, { ...app, mandantenMax: zahl });
+  }
+  return neu;
 }

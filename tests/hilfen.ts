@@ -65,6 +65,8 @@ export function aufbauen(
     wandStart?: number;
     /** The stand-in push service answers after this long. */
     sendenMs?: number;
+    /** How many groups (tenants) each app may open (default: plenty, so only the tests of the limit meet it). */
+    mandanten?: { tkd?: number; azp?: number };
     /** Tenants per app for which only the new procedure holds. */
     streng?: { tkd?: string[]; azp?: string[] };
     /** The developer's public keys and password entries (as the environment holds them). */
@@ -82,6 +84,7 @@ export function aufbauen(
           einladen: true,
           gesperrt: optionen.gesperrt ?? [],
           streng: optionen.streng?.tkd ?? [],
+          mandanten: optionen.mandanten?.tkd ?? 20,
         },
         azp: {
           name: 'Arbeitszeitplaner',
@@ -90,6 +93,7 @@ export function aufbauen(
           einladen: optionen.einladenAzp ?? true,
           gesperrt: [],
           streng: optionen.streng?.azp ?? [],
+          mandanten: optionen.mandanten?.azp ?? 20,
         },
       },
     }),
