@@ -108,6 +108,30 @@ Ein **allgemeiner Treffpunkt** für mehrere Apps von Tobias:
    App (`einladen` in `konfiguration/apps.json`). Der Nachweis vom Login-Skript bleibt der Weg für
    das erste Gerät.
 
+### Tobias, 21.11.2026: PHP-Variante nicht jetzt
+
+Geprüft, ob der Treffpunkt eine PHP-Variante bekommen soll. **Entschieden: jetzt nicht.** „Dasselbe
+Protokoll soll später auch auf einem einfachen PHP-Hosting laufen können“ (oben) bleibt eine Anforderung
+an das Protokoll, kein Bauauftrag.
+
+- **Gründe:**
+  - Der Treffpunkt hält seinen Zustand im Arbeitsspeicher eines Prozesses: wartende Nachrichten,
+    Geräteregister, Sperrliste, Zähler je App, Einladungen, benutzte Nachweise. Klassisches PHP hat je
+    Anfrage einen frischen Prozess. Es blieben APCu (Verfügbarkeit beim Hosting nicht geprüft) oder
+    Dateien mit Sperren; dann läge Chiffrat kurz auf der Platte und „Nichts auf der Platte“
+    (`docs/sicherheit.md`) gälte nicht mehr.
+  - Eine zweite Umsetzung derselben Sicherheitsgrenze (Nachweis, Einladung, Grenzen, Anklingeln) hieße,
+    jede Korrektur doppelt zu machen und zu prüfen.
+  - Es gibt keinen Anlass: Der frühere IONOS-Treffpunkt wurde bewusst abgelöst, keine App und kein
+    Nutzer verlangt PHP.
+- **Was bleibt:** `docs/schnittstelle.md` ist der Vertrag. Je vollständiger er ist und je mehr davon
+  Tests über HTTP prüfen, desto billiger wird eine zweite Umsetzung.
+- **Auslöser für einen Neubau:** bunny fällt weg oder wird zu teuer, oder jemand will den Treffpunkt auf
+  eigenem einfachem Hosting betreiben.
+- **Dann:** eine abgespeckte Variante nur für Ablegen, Abholen und Einschreiben; das Anklingeln ginge in
+  PHP mit `curl`. Zuerst klären, ob das Hosting APCu hat und ob Chiffrat für höchstens 30 s auf der
+  Platte vertretbar ist.
+
 ### Vorgaben dieser Sitzung (gelten, solange Tobias nichts anderes sagt)
 
 - **Hostname:** der Name, den bunny dem CDN-Endpoint gibt (`mc-….bunny.run`, oder `….b-cdn.net`,
