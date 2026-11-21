@@ -14,7 +14,7 @@ import {
   serverAnlegen,
 } from '../src/http.ts';
 import { KOERPER_BYTES } from '../src/grenzen.ts';
-import { FAEHIGKEITEN, VERSION, type Treffpunkt } from '../src/treffpunkt.ts';
+import { FAEHIGKEITEN, VERSION, verfahrenFuer, type Treffpunkt } from '../src/treffpunkt.ts';
 import { besitzText } from '../src/zulassung.ts';
 import {
   aufbauen,
@@ -62,6 +62,7 @@ test('health check with the commit, and a refusal over HTTP', async () => {
       stand: 'b'.repeat(40),
       v: VERSION,
       faehigkeiten: [...FAEHIGKEITEN],
+      verfahren: verfahrenFuer(undefined, '1'),
     });
     const p = await fetch(`${basis}/v1/ping`, {
       method: 'POST',
@@ -590,5 +591,19 @@ test('over real HTTP a certificate with its signature header passes the head, an
     });
     assert.equal(vor.status, 204);
     assert.match(vor.headers.get('access-control-allow-headers') ?? '', /x-treffpunkt-signatur/);
+  });
+});
+
+test('over real HTTP the page of a known app may read /gesund (CORS) and sees what is served; a stranger does not', async () => {
+  const a = aufbauen({ stand: 'c'.repeat(40) });
+  await mitServer(a.t, async (basis) => {
+    const ok = await fetch(`${basis}/gesund`, { headers: { origin: TKD } });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('access-control-allow-origin'), TKD);
+    const daten = (await ok.json()) as Record<string, unknown>;
+    assert.equal(daten['app'], 'tkd');
+    assert.deepEqual(daten['verfahren'], verfahrenFuer({ streng: new Set() }, '1'));
+    const fremd = await fetch(`${basis}/gesund`, { headers: { origin: 'https://boese.example' } });
+    assert.equal(fremd.headers.get('access-control-allow-origin'), null);
   });
 });

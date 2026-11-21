@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GRENZEN, KOERPER_BYTES, type Grenzen } from '../src/grenzen.ts';
-import { FAEHIGKEITEN, VERSION } from '../src/treffpunkt.ts';
+import { FAEHIGKEITEN, VERSION, verfahrenFuer } from '../src/treffpunkt.ts';
 import { einladungAusstellen, neueKennung, zugangAusstellen } from '../src/zugang.ts';
 import {
   AZP,
@@ -45,6 +45,7 @@ test('GET /gesund answers for the health check with the commit; nothing else is 
     stand: commit,
     v: VERSION,
     faehigkeiten: [...FAEHIGKEITEN],
+    verfahren: verfahrenFuer(undefined, '1'),
   });
   const ohne = await aufbauen({ stand: 'nicht ein commit' }).t.behandeln({
     methode: 'GET',
@@ -57,6 +58,7 @@ test('GET /gesund answers for the health check with the commit; nothing else is 
     stand: 'unbekannt',
     v: VERSION,
     faehigkeiten: [...FAEHIGKEITEN],
+    verfahren: verfahrenFuer(undefined, '1'),
   });
   const g = await a.t.behandeln({
     methode: 'GET',

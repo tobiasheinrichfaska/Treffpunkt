@@ -156,6 +156,8 @@ export async function post(
     roh?: Buffer;
     /** Send no Content-Length (as a chunked body): the head then counts the endpoint's limit. */
     ohneLaenge?: boolean;
+    /** More header lines, names in lower case (for example `x-treffpunkt-p`). */
+    kopf?: Record<string, string>;
   } = {},
 ): Promise<Ergebnis> {
   const koerper = optionen.roh ?? Buffer.from(JSON.stringify(daten));
@@ -166,6 +168,7 @@ export async function post(
   if (!optionen.ohneLaenge) kopf['content-length'] = String(koerper.length);
   if (optionen.herkunft !== null) kopf['origin'] = optionen.herkunft ?? TKD;
   if (optionen.zugang) kopf['authorization'] = `Bearer ${optionen.zugang}`;
+  Object.assign(kopf, optionen.kopf);
   // As the HTTP layer does: the head first (it counts the request per minute), then the body.
   const kopfteil = { methode: 'POST', pfad: `/v1/${endpunkt}`, kopf };
   const vor = a.t.vorpruefen(kopfteil);

@@ -63,6 +63,37 @@ export const FAEHIGKEITEN = [
   'geraete',
 ] as const;
 
+/** The techniques this Treffpunkt serves and which one it prefers (`verfahren` in `/gesund`, `ping` and the answers
+ * of enrolling and renewing): `zugang` = the old ticket `z1.…` (a bearer value, tenant `1` only), `zertifikat` = the
+ * certificate with the device's proof of possession. `einschreiben` = the ways a device can enrol: `nachweis` (login
+ * script) and `einladung` (`e1`) are the old ones, `einladung2` (`e2`), `gruender` and `passwort` the new ones. An app
+ * uses the preferred technique when it can and falls back to the other only where the answer still offers it. */
+export interface Verfahren {
+  readonly angeboten: readonly ('zugang' | 'zertifikat')[];
+  readonly bevorzugt: 'zertifikat';
+  readonly einschreiben: readonly (
+    'nachweis' | 'einladung' | 'einladung2' | 'gruender' | 'passwort'
+  )[];
+}
+const EINSCHREIBEN_ALT = ['nachweis', 'einladung'] as const;
+const EINSCHREIBEN_NEU = ['einladung2', 'gruender', 'passwort'] as const;
+
+/** What is served for a tenant of an app: the old technique only in tenant `1` and only where `streng` has not
+ * switched it off; the new one everywhere. Without an app (an unknown origin): what the code serves at all. */
+export function verfahrenFuer(
+  app: Pick<AppEinstellung, 'streng'> | undefined,
+  mandant: string,
+): Verfahren {
+  const altMoeglich = app === undefined || (mandant === ALT_MANDANT && !app.streng.has(mandant));
+  return altMoeglich
+    ? {
+        angeboten: ['zugang', 'zertifikat'],
+        bevorzugt: 'zertifikat',
+        einschreiben: [...EINSCHREIBEN_ALT, ...EINSCHREIBEN_NEU],
+      }
+    : { angeboten: ['zertifikat'], bevorzugt: 'zertifikat', einschreiben: EINSCHREIBEN_NEU };
+}
+
 export const ENDPUNKTE = [
   'ping',
   'einschreiben',
@@ -387,8 +418,13 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
   const istGesperrt = (app: AppEinstellung, scope: string, geraet: string): boolean =>
     app.gesperrt.has(geraet) || gesperrtListe.get(scope)?.has(geraet) === true;
 
-  /** What the answer says about this Treffpunkt, for apps that ask what it can do. */
-  const faehig = { v: VERSION, faehigkeiten: FAEHIGKEITEN };
+  /** What the answer says about this Treffpunkt, for apps that ask what it can do: the version, the abilities and
+   * the techniques it serves for this tenant and prefers (`verfahrenFuer`). */
+  const faehigFuer = (app: AppEinstellung | undefined, mandant: string) => ({
+    v: VERSION,
+    faehigkeiten: FAEHIGKEITEN,
+    verfahren: verfahrenFuer(app, mandant),
+  });
 
   /** A device's public key as the request carries it: an uncompressed P-256 point, or undefined. */
   function geraetSchluessel(wert: unknown): string | undefined | null {
@@ -602,7 +638,7 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
       antwortDaten['mandant'] = mandant;
       antwortDaten['rolle'] = rolle;
       ende = c.bis;
-      Object.assign(antwortDaten, faehig);
+      Object.assign(antwortDaten, faehigFuer(app, mandant));
     }
     antwortDaten['bis'] = isoTag(ende);
     return antwort(201, antwortDaten, herkunft);
@@ -742,11 +778,23 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
     return { z: ich, app };
   }
 
+  const appVon = (herkunft: string): AppEinstellung | undefined =>
+    [...u.apps.values()].find((a) => a.herkuenfte.includes(herkunft));
+
   function kopfPruefen(a: Kopfteil): KopfErgebnis {
     if (a.pfad === '/gesund') {
-      return a.methode === 'GET'
-        ? { fertig: antwort(200, { ok: true, stand, ...faehig }, undefined) }
-        : { art: 'methode' };
+      if (a.methode !== 'GET') return { art: 'methode' };
+      // The page of an app may read it (CORS for a known origin): an app finds out what the Treffpunkt serves and
+      // prefers before it enrols — for its own app and the first tenant (`1`), otherwise what the code serves at all.
+      const herkunft = bekannt(a.kopf['origin']);
+      const app = herkunft === undefined ? undefined : appVon(herkunft);
+      const daten = {
+        ok: true,
+        stand,
+        ...faehigFuer(app, ALT_MANDANT),
+        ...(app ? { app: app.id, altAbgeschaltet: app.streng.has(ALT_MANDANT) } : {}),
+      };
+      return { fertig: antwort(200, daten, herkunft) };
     }
     const endpunkt = ENDPUNKTE.find((e) => a.pfad === `/v1/${e}`);
     if (!endpunkt) return { art: 'unbekannt' };
@@ -860,6 +908,7 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
     herkunft: string,
     taktMs: number,
     jetztMs: number,
+    angekuendigt: boolean,
   ): Promise<Antwort> {
     const { z, app } = zugang;
     const jetztS = Math.floor(wandJetzt() / 1000);
@@ -872,7 +921,10 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
             geraet: z.geraet,
             app: z.app,
             bis: isoTag(z.bis),
-            ...(z.verfahren === 'neu' ? { mandant: z.mandant, rolle: z.rolle, ...faehig } : {}),
+            ...(z.verfahren === 'neu' ? { mandant: z.mandant, rolle: z.rolle } : {}),
+            // an app that announces its protocol version (`X-Treffpunkt-P`) learns the Fassung and the techniques; an
+            // old app sends no such header and gets the answer it always got
+            ...(z.verfahren === 'neu' || angekuendigt ? faehigFuer(app, z.mandant) : {}),
           },
           herkunft,
         );
@@ -885,7 +937,7 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
           const c = zertifikatAusstellen(u.schluessel, z.zertifikat, jetztS);
           return antwort(
             200,
-            { zertifikat: c.zertifikat, bis: isoTag(c.bis), ...faehig },
+            { zertifikat: c.zertifikat, bis: isoTag(c.bis), ...faehigFuer(app, z.mandant) },
             herkunft,
           );
         }
@@ -915,7 +967,7 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
           daten['rolle'] = rolle;
           const e = register.get(z.scope)?.get(z.geraet);
           if (e) e.rolle = rolle;
-          Object.assign(daten, faehig);
+          Object.assign(daten, faehigFuer(app, z.mandant));
         }
         return antwort(200, daten, herkunft);
       }
@@ -1145,13 +1197,9 @@ export function treffpunktAnlegen(u: Umgebung): Treffpunkt {
       if (endpunkt === 'auswertung') return auswertungBehandeln(roh, herkunft, wandJetzt(), taktMs);
       if (!r.zugang) return fehler('zugang-fehlt', herkunft);
       const pKopf = a.kopf['x-treffpunkt-p'];
-      gesehen(
-        r.zugang.z,
-        pKopf !== undefined && P_KOPF.test(pKopf) ? Number(pKopf) : undefined,
-        wandJetzt(),
-        taktMs,
-      );
-      return mitZugang(endpunkt, roh, r.zugang, herkunft, taktMs, wandJetzt());
+      const p = pKopf !== undefined && P_KOPF.test(pKopf) ? Number(pKopf) : undefined;
+      gesehen(r.zugang.z, p, wandJetzt(), taktMs);
+      return mitZugang(endpunkt, roh, r.zugang, herkunft, taktMs, wandJetzt(), p !== undefined);
     },
 
     ablehnen(art, origin) {
