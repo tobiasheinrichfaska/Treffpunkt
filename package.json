@@ -1,0 +1,31 @@
+{
+  "name": "treffpunkt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Allgemeiner Treffpunkt: reicht Ende-zu-Ende-verschlüsselte Nachrichten im Arbeitsspeicher weiter und gibt Klingeln an Push-Dienste weiter.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "node --test \"tests/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "schluessel": "node scripts/schluessel.ts",
+    "entwickler": "node scripts/entwickler.ts",
+    "probe": "node scripts/probe.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

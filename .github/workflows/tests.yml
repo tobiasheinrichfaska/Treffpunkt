@@ -1,0 +1,115 @@
+# The check „Tests“ (CLAUDE.md, Deployment): Freigabe rolls out only an image whose commit has this
+# check green. On every push to main and on pull requests: types, lint, format, tests, then the image
+# is built and started. Only the job „Image“ may write the package, and it runs only for a push to
+# main (job-level `if`): it pushes the image to ghcr.io, tagged with the commit (and `main`). On a pull
+# request the job „Image-Probe“ builds and starts it without that right. A pull request of this repo
+# could still change this file and push a tag (docs/sicherheit.md, § 5). Uses no secret but the job's
+# own GITHUB_TOKEN. Deploys nothing. tests/workflow.test.ts checks the rules of this file.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pruefen:
+    # The check run is named „Tests“, as Freigabe looks for it.
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+
+  probe:
+    # Pull requests: build and start the image, without the right to write the package.
+    name: Image-Probe
+    if: github.event_name == 'pull_request'
+    needs: pruefen
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      IMAGE: treffpunkt-probe
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Image bauen (linux/amd64, wie Magic Containers es braucht)
+        run: docker build --platform linux/amd64 --build-arg STAND=${{ github.sha }} -t "$IMAGE:${{ github.sha }}" .
+      - name: Image starten und /gesund prüfen
+        run: |
+          docker run -d --name probe -p 8080:8080 \
+            -e TREFFPUNKT_SCHLUESSEL="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=')" \
+            "$IMAGE:${{ github.sha }}"
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8080/gesund; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/gesund | grep -F '"stand":"${{ github.sha }}"'
+          docker logs probe
+          docker rm -f probe
+
+  image:
+    # Only a push to main: build, start, push. Freigabe looks for this check run („Image“) with
+    # conclusion success in a suite of a push to main; on a pull request it shows as skipped.
+    name: Image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: pruefen
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/tobiasheinrichfaska/treffpunkt
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Image bauen (linux/amd64, wie Magic Containers es braucht)
+        run: |
+          docker build --platform linux/amd64 \
+            --label org.opencontainers.image.source=https://github.com/tobiasheinrichfaska/Treffpunkt \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --build-arg STAND=${{ github.sha }} \
+            -t "$IMAGE:${{ github.sha }}" .
+      - name: Image starten und /gesund prüfen
+        run: |
+          docker run -d --name probe -p 8080:8080 \
+            -e TREFFPUNKT_SCHLUESSEL="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=')" \
+            "$IMAGE:${{ github.sha }}"
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8080/gesund; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/gesund | grep -F '"stand":"${{ github.sha }}"'
+          docker logs probe
+          docker rm -f probe
+      - name: Image nach ghcr.io schieben
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:main"
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:main"
+          docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:${{ github.sha }}" | tee -a "$GITHUB_STEP_SUMMARY"
