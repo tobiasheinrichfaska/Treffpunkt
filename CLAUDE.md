@@ -149,7 +149,7 @@ Next, in this order (`docs/plan.md` § 7):
 | `src/grenzen.ts` | Every limit (`GRENZEN`, `KOERPER_BYTES`) and the sliding-window counter (by count, or by bytes for the bodies per minute) |
 | `src/eingabe.ts` | Strict input: base64url, objects with fixed fields, ids |
 | `src/protokoll.ts` | The only output: one JSON line per event, counts only |
-| `tests/` | Node's test runner: `treffpunkt` (endpoints end to end), `postfach`, `zugang`, `nachweis`, `klingeln` (also the real way out against local servers: TLS, no redirect, deadline), `zulassung` (certificate + proof of possession, tenants, invitation `e2`, blocking, founder ticket, developer password, evaluation, `streng`, the old way beside it), `entwickler` (the tool), `konfiguration`, `grenzen` (counter; every limit of `GRENZEN` has its row in `docs/schnittstelle.md`), `server` (real HTTP: head before body, `Connection: close`, 413 with and without length, 408, bodies on the way, aborts), `workflow` (only „Image“ on `main` writes the package in any notation, actions pinned; must-fail and must-pass edits), `probe` (short commit), `start` (settings, clocks, timers, the container's own sender end to end with its 10 s deadline); `hilfen.ts` (wall clock and monotonic clock with their own epochs, key pair, stand-in push service, a self-signed certificate made in the test) |
+| `tests/` | Node's test runner: `treffpunkt` (endpoints end to end), `postfach`, `zugang`, `nachweis`, `klingeln` (also the real way out against local servers: TLS, no redirect, deadline), `verfahren` (what the Treffpunkt serves and prefers: `/gesund` with CORS for a known origin, `ping` with `X-Treffpunkt-P`), `zulassung` (certificate + proof of possession, tenants, invitation `e2`, blocking, founder ticket, developer password, evaluation, `streng`, the old way beside it), `entwickler` (the tool), `konfiguration`, `grenzen` (counter; every limit of `GRENZEN` has its row in `docs/schnittstelle.md`), `server` (real HTTP: head before body, `Connection: close`, 413 with and without length, 408, bodies on the way, aborts), `workflow` (only „Image“ on `main` writes the package in any notation, actions pinned; must-fail and must-pass edits), `probe` (short commit), `start` (settings, clocks, timers, the container's own sender end to end with its 10 s deadline); `hilfen.ts` (wall clock and monotonic clock with their own epochs, key pair, stand-in push service, a self-signed certificate made in the test) |
 | `scripts/entwickler.ts` | `npm run entwickler -- schluessel\|gruenderticket\|passwort\|auswertung`: Tobias' Werkzeug am eigenen PC (Schlüssel nie im Repo) |
 | `scripts/schluessel.ts` | `npm run schluessel`: makes `TREFFPUNKT_SCHLUESSEL` (Tobias, on his PC) |
 | `scripts/stand.ts` | `standPasst`: does the running commit fit a given one (7–40 characters) — for the probe, tested |
@@ -166,7 +166,7 @@ npm ci
 npm run typecheck
 npm run lint
 npm run format:check
-npm test            # 169 tests on 2026-11-21
+npm test            # 176 tests on 2026-11-21
 ```
 
 Local end-to-end: start `TREFFPUNKT_SCHLUESSEL=… PORT=18080 node src/server.ts`, make an invitation

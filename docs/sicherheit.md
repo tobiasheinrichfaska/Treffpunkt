@@ -332,6 +332,13 @@ nicht mehr.
   Sitzung. Verloren: neuen erzeugen, öffentlichen Teil ersetzen, ausrollen. Das Passwort steht nur als
   scrypt-Hash in der Umgebung; Versuche sind auf 20 je App und Stunde begrenzt.
 
+## Was `/gesund` verrät (21.11.2026)
+
+`GET /gesund` ist ohne Anmeldung lesbar und nennt den Commit, die Fassung, die Fähigkeiten und die bedienten
+Verfahren; für die Seite einer bekannten App (CORS) zusätzlich ihre App-Kennung und ob das alte Ticket abgeschaltet
+ist. Das sind Betriebsangaben, kein Geheimnis (die Fähigkeiten stehen in `docs/schnittstelle.md`). Mandanten
+nennt es nie. Getestet: `verfahren.test.ts`, `server.test.ts`.
+
 ## Offen
 
 - HTTP-Protokolle von Magic Containers (Client-IP, 3 Tage): abschaltbar? (`docs/bunny-einrichtung.md`)

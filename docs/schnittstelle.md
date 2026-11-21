@@ -74,9 +74,18 @@ Geheimwert macht alle Zugänge und Einladungen auf einmal ungültig: Alle Gerät
 
 ### `GET /gesund`
 
-`200 {"ok":true,"stand":"<commit>"}`. Ohne Herkunft und ohne Zugang, für bunny und für Freigabe:
-`stand` ist der Commit, aus dem das Image gebaut wurde (beim Bau in `stand.txt` geschrieben, nie aus
-einer Umgebungsvariable), sonst `"unbekannt"`. Daran sieht man von außen, welches Image läuft.
+`200 {"ok":true,"stand":"<commit>","v":2,"faehigkeiten":[…],"verfahren":{…}}`. Ohne Zugang, für bunny und für
+Freigabe: `stand` ist der Commit, aus dem das Image gebaut wurde (beim Bau in `stand.txt` geschrieben, nie aus
+einer Umgebungsvariable), sonst `"unbekannt"`. Daran sieht man von außen, welches Image läuft. `v`,
+`faehigkeiten` und `verfahren` sagen, was dieser Treffpunkt bedient und bevorzugt (siehe „Zulassung“,
+„Verfahren“).
+
+Kommt die Anfrage mit `Origin` einer erlaubten Seite einer App, darf diese Seite die Antwort lesen
+(`Access-Control-Allow-Origin`), und die Antwort nennt zusätzlich `app` und `altAbgeschaltet`
+(`true`: das alte Ticket ist für den Mandanten `1` dieser App abgeschaltet, `streng`), und `verfahren` gilt für
+diese App und ihren Mandanten `1`. So erfährt eine App **vor dem Einschreiben**, was sie benutzen soll. Ohne
+oder mit fremder Herkunft: kein CORS-Kopf, `verfahren` nennt, was der Code überhaupt bedient. Nichts davon
+ist geheim.
 
 ### `POST /v1/einschreiben` — ein neues Gerät
 
@@ -103,7 +112,10 @@ mit Einladung; gezählt wird nur, was alle Prüfungen bestanden hat).
 
 ### `POST /v1/ping`
 
-Körper `{}`. Antwort `200 {"geraet": "…", "app": "tkd", "bis": "2027-02-13"}`.
+Körper `{}`. Antwort `200 {"geraet": "…", "app": "tkd", "bis": "2027-02-13"}`. Eine App, die ihre
+Protokollversion im Kopf `X-Treffpunkt-P` ankündigt (und jedes Gerät mit Zertifikat), bekommt zusätzlich `v`,
+`faehigkeiten` und `verfahren` für ihren Mandanten; eine alte App sendet den Kopf nicht und bekommt die Antwort
+wie immer.
 
 ### `POST /v1/erneuern`
 
@@ -197,9 +209,26 @@ Wie heute im Trainerbuch (`parseKlingelAnfrage`, `php/hub/treffpunkt.php`):
 Sie kommt **neben** das alte Verfahren (Ticket `z1`, Nachweis der Testzone, Einladung `e1`), das
 unverändert weiter gilt, bis Tobias es je App und Mandant mit `streng` abschaltet.
 
-**Fähigkeiten.** `GET /gesund`, die Antworten auf `ping` mit Zertifikat und auf Einschreiben/Erneuern
-mit Geräteschlüssel nennen `"v": 2` und `"faehigkeiten": [...]`. Eine App, die nichts davon sieht,
-spricht mit einem älteren Treffpunkt und bleibt beim alten Verfahren.
+**Fähigkeiten.** `GET /gesund`, `ping` (mit Zertifikat oder angekündigter Version) und die Antworten auf
+Einschreiben/Erneuern mit Geräteschlüssel nennen `"v": 2` und `"faehigkeiten": [...]`. Eine App, die nichts
+davon sieht, spricht mit einem älteren Treffpunkt und bleibt beim alten Verfahren.
+
+**Verfahren: was der Treffpunkt bedient und bevorzugt.** Dasselbe Feld `verfahren`:
+
+```json
+{ "angeboten": ["zugang", "zertifikat"], "bevorzugt": "zertifikat",
+  "einschreiben": ["nachweis", "einladung", "einladung2", "gruender", "passwort"] }
+```
+
+- `angeboten`: die Techniken der Anmeldung. `zugang` = das alte Ticket `z1` (Inhaber-Wert, nur Mandant `1`),
+  `zertifikat` = Zertifikat mit Besitznachweis. Wo `streng` das alte abgeschaltet hat und in jedem Mandanten
+  außer `1`: nur `["zertifikat"]`.
+- `bevorzugt`: immer `zertifikat`. Eine App nimmt das Zertifikat, wenn sie es kann, und das andere nur, wo es
+  `angeboten` ist.
+- `einschreiben`: die Wege, ein Gerät aufzunehmen. Alt: `nachweis` (Login-Skript der Testzone), `einladung`
+  (`e1`); neu: `einladung2` (`e2`), `gruender`, `passwort`. Wo das alte abgeschaltet ist, nur die neuen.
+- Das Feld gilt für den Mandanten der Antwort (bei `ping` und den Antworten mit Schlüssel der Mandant des
+  Geräts, bei `/gesund` der Mandant `1` der App der Herkunft).
 
 **Mandant** (Schule). Postfächer, Anwesenheit, Geräte und Sperren gelten je `(app, mandant)`. Geräte
 verschiedener Mandanten erreichen einander nie. Der Mandant steht im Zertifikat, in der Einladung
